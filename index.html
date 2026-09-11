@@ -1,0 +1,2396 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>RAGE RUN — Endless</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#07060d;
+    --bg-deep:#120a22;
+    --neon-cyan:#3ef6ff;
+    --neon-pink:#ff2f92;
+    --neon-violet:#8b5cf6;
+    --warn-red:#ff3b4e;
+    --warn-amber:#ffb02e;
+    --text-dim:#8d86ad;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; }
+
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:var(--bg-void);
+    overflow:hidden;
+    overscroll-behavior:none;
+    font-family:'Space Mono', monospace;
+    touch-action:none;
+  }
+
+  #game-root{
+    position:relative;
+    width:100vw; height:100vh; height:100dvh;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(139,92,246,0.18), transparent 60%),
+      radial-gradient(ellipse at 90% 110%, rgba(62,246,255,0.10), transparent 55%),
+      var(--bg-void);
+  }
+
+  #gameCanvas{
+    display:block;
+    background:linear-gradient(180deg, #0d0a1a 0%, #120a22 55%, #0a0714 100%);
+    image-rendering:pixelated;
+    box-shadow:
+      0 0 0 1px rgba(139,92,246,0.35),
+      0 0 60px rgba(62,246,255,0.08),
+      inset 0 0 120px rgba(0,0,0,0.6);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding: calc(clamp(8px,2.4vh,14px) + env(safe-area-inset-top,0px)) clamp(10px,3vw,18px) 0;
+    pointer-events:none;
+    z-index:10;
+  }
+
+  .hud-chip{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(7.5px, 2.3vw, 10px);
+    color:var(--neon-cyan);
+    background:rgba(10,7,20,0.7);
+    border:1px solid rgba(62,246,255,0.4);
+    padding:clamp(5px,1.6vw,8px) clamp(7px,2.2vw,12px);
+    letter-spacing:1px;
+    text-shadow:0 0 8px rgba(62,246,255,0.8);
+    box-shadow:0 0 14px rgba(62,246,255,0.15);
+    line-height:1.6;
+    white-space:nowrap;
+  }
+
+  .hud-chip.deaths{
+    color:var(--neon-pink);
+    border-color:rgba(255,47,146,0.4);
+    text-shadow:0 0 8px rgba(255,47,146,0.8);
+    box-shadow:0 0 14px rgba(255,47,146,0.15);
+    text-align:right;
+  }
+  .hud-sub{ display:block; font-size:8px; color:var(--text-dim); margin-top:4px; text-shadow:none; }
+
+  .hud-col{ display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .hud-col.right{ align-items:flex-end; }
+  .hud-chip.coins{ color:var(--warn-amber); border-color:rgba(255,176,46,0.4); text-shadow:0 0 8px rgba(255,176,46,0.7); box-shadow:0 0 14px rgba(255,176,46,0.12); }
+  .hud-icon-row{ display:flex; gap:8px; pointer-events:auto; }
+  .icon-btn{
+    width:clamp(26px, 7.5vw, 32px); height:clamp(26px, 7.5vw, 32px);
+    border-radius:6px;
+    border:1px solid rgba(62,246,255,0.4);
+    background:rgba(10,7,20,0.7);
+    font-size:clamp(11px, 3.2vw, 14px);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:#fff;
+  }
+  .icon-btn:active{ transform:scale(0.92); }
+
+  #rage-meter{
+    position:absolute; top:calc(clamp(8px,2.4vh,14px) + env(safe-area-inset-top,0px) + 40px); left:50%; transform:translateX(-50%);
+    width:clamp(100px, 30vw, 140px); height:10px;
+    background:rgba(10,7,20,0.7);
+    border:1px solid rgba(255,59,78,0.4);
+    border-radius:5px;
+    overflow:hidden;
+    z-index:10; pointer-events:none;
+  }
+  #rage-fill{
+    height:100%; width:0%;
+    background:linear-gradient(90deg, var(--warn-amber), var(--warn-red));
+    transition:width 0.3s ease;
+  }
+  #rage-label{
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    font-size:7px; color:var(--text-dim); letter-spacing:1px;
+  }
+
+  .msg{ color:var(--warn-red); font-size:11px; min-height:14px; }
+
+  .shop-item{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,176,46,0.3);
+    padding:10px 14px; width:100%; max-width:300px;
+  }
+  .shop-item-info{ display:flex; flex-direction:column; gap:4px; text-align:left; }
+  .shop-item-title{ font-size:12px; color:#fff; }
+  .shop-item-price{ font-size:11px; color:var(--warn-amber); }
+
+  .settings-row{
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+    width:100%; max-width:260px;
+    font-size:13px; color:#fff;
+  }
+  .toggle-btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    padding:8px 14px;
+    background:rgba(62,246,255,0.15);
+    color:var(--neon-cyan);
+    border:1px solid rgba(62,246,255,0.5);
+    cursor:pointer;
+  }
+  .toggle-btn.off{ background:rgba(255,59,78,0.1); color:var(--warn-red); border-color:rgba(255,59,78,0.4); }
+
+
+  #title-badge{
+    position:absolute; top:calc(clamp(8px,2.4vh,14px) + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(9px, 2.6vw, 11px);
+    color:#fff;
+    text-align:center;
+    pointer-events:none;
+    z-index:10;
+  }
+  #title-badge span{ color:var(--neon-pink); text-shadow:0 0 10px rgba(255,47,146,0.9); }
+
+  /* ---------- Overlays ---------- */
+  .overlay{
+    position:absolute; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    flex-direction:column; gap:clamp(10px,2.5vh,16px);
+    background:rgba(4,3,10,0.82);
+    backdrop-filter:blur(2px);
+    z-index:30;
+    text-align:center;
+    padding: clamp(14px,4vw,20px);
+    padding-top: calc(clamp(14px,4vw,20px) + env(safe-area-inset-top,0px));
+    padding-bottom: calc(clamp(14px,4vw,20px) + env(safe-area-inset-bottom,0px));
+    overflow-y:auto;
+  }
+  .overlay.active{ display:flex; }
+
+  .overlay h1{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(20px, 5vw, 34px);
+    margin:0;
+    letter-spacing:2px;
+  }
+  .overlay h1.die{ color:var(--warn-red); text-shadow:0 0 18px rgba(255,59,78,0.9); }
+
+  .overlay p{
+    color:var(--text-dim);
+    font-size:13px;
+    margin:0;
+    max-width:340px;
+    line-height:1.6;
+  }
+  .overlay .stat-row{
+    display:flex; gap:22px; margin:4px 0;
+  }
+  .overlay .stat{
+    font-family:'Press Start 2P', monospace;
+    font-size:16px;
+    color:var(--neon-cyan);
+    text-shadow:0 0 10px rgba(62,246,255,0.7);
+  }
+  .overlay .stat.best{ color:var(--warn-amber); text-shadow:0 0 10px rgba(255,176,46,0.7); }
+  .overlay .stat-label{
+    display:block; font-size:9px; color:var(--text-dim); font-family:'Space Mono', monospace;
+    margin-top:4px; letter-spacing:1px;
+  }
+
+  .btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(9px, 2.6vw, 11px);
+    color:#0a0714;
+    background:linear-gradient(135deg, var(--neon-cyan), var(--neon-violet));
+    border:none;
+    padding:clamp(11px,3vh,14px) clamp(14px,4vw,22px);
+    cursor:pointer;
+    letter-spacing:1px;
+    box-shadow:0 0 22px rgba(62,246,255,0.4);
+    transition:transform 0.08s ease;
+    max-width:90vw;
+    white-space:normal;
+  }
+  .btn:active{ transform:scale(0.94); }
+  .btn.continue{
+    background:linear-gradient(135deg, var(--warn-amber), #ff7a2f);
+    box-shadow:0 0 22px rgba(255,176,46,0.5);
+    font-size:clamp(10px, 3vw, 13px);
+    padding:clamp(13px,3.4vh,16px) clamp(16px,4.5vw,26px);
+  }
+  .btn.continue:disabled, .btn.continue.disabled{
+    opacity:0.45; filter:grayscale(0.6);
+  }
+  .btn.secondary{
+    background:transparent;
+    color:var(--neon-cyan);
+    border:1px solid rgba(62,246,255,0.5);
+    box-shadow:none;
+  }
+
+  /* ---------- Touch controls ---------- */
+  #touch-controls{
+    position:absolute; bottom:0; left:0; right:0;
+    display:none;
+    justify-content:space-between;
+    align-items:flex-end;
+    padding: 0 clamp(10px,4vw,22px) calc(clamp(12px,3.5vh,22px) + env(safe-area-inset-bottom,0px));
+    z-index:20;
+    pointer-events:none;
+  }
+  #touch-controls.visible{ display:flex; }
+
+  .touch-group{ display:flex; gap:12px; pointer-events:auto; }
+
+  .touch-btn{
+    width:clamp(46px, 13.5vw, 66px); height:clamp(46px, 13.5vw, 66px);
+    border-radius:50%;
+    border:2px solid rgba(62,246,255,0.5);
+    background:rgba(18,10,34,0.75);
+    color:var(--neon-cyan);
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(13px, 4vw, 18px);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 16px rgba(62,246,255,0.2);
+    touch-action:none;
+  }
+  .touch-btn:active, .touch-btn.pressed{
+    background:rgba(62,246,255,0.25);
+    box-shadow:0 0 26px rgba(62,246,255,0.5);
+  }
+  #jump-btn{
+    width:clamp(56px, 16.5vw, 80px); height:clamp(56px, 16.5vw, 80px);
+    border-color:rgba(255,47,146,0.55);
+    color:var(--neon-pink);
+    box-shadow:0 0 16px rgba(255,47,146,0.2);
+  }
+  #jump-btn:active, #jump-btn.pressed{
+    background:rgba(255,47,146,0.25);
+    box-shadow:0 0 26px rgba(255,47,146,0.5);
+  }
+
+  #hint{
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    color:var(--text-dim); font-size:11px; letter-spacing:0.5px;
+    z-index:10; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-root">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="title-badge">RAGE <span>RUN</span></div>
+
+  <div id="hud">
+    <div class="hud-col">
+      <div class="hud-chip">
+        DIST <span id="distNum">0</span>m
+        <span class="hud-sub">BEST <span id="bestNum">0</span>m</span>
+      </div>
+      <div class="hud-chip coins">
+        🪙 <span id="coinNum">0</span>
+        <span class="hud-sub">❤️ <span id="heartNum">3</span></span>
+      </div>
+    </div>
+    <div class="hud-col right">
+      <div class="hud-chip deaths">
+        ✕ <span id="deathCount">0</span>
+        <span class="hud-sub">RUN <span id="runNum">1</span></span>
+      </div>
+      <div class="hud-icon-row">
+        <button class="icon-btn" id="shop-btn" title="Shop">🛒</button>
+        <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rage-meter"><div id="rage-fill"></div><span id="rage-label">RAGE</span></div>
+
+  <div id="hint">A/D or ←/→ to move · SPACE to jump · R to restart</div>
+
+  <div id="touch-controls">
+    <div class="touch-group">
+      <div class="touch-btn" id="left-btn">◀</div>
+      <div class="touch-btn" id="right-btn">▶</div>
+    </div>
+    <div class="touch-group">
+      <div class="touch-btn" id="jump-btn">▲</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="death-overlay">
+    <h1 class="die">GAME OVER</h1>
+    <p id="death-line">the void doesn't negotiate.</p>
+    <div class="stat-row">
+      <div class="stat">
+        <span id="finalDist">0</span>m
+        <span class="stat-label">DISTANCE</span>
+      </div>
+      <div class="stat best">
+        <span id="finalCoins">0</span> 🪙
+        <span class="stat-label">COINS</span>
+      </div>
+    </div>
+    <button class="btn continue" id="death-continue">CONTINUE — 900 🪙</button>
+    <button class="btn secondary" id="death-restart">RESTART</button>
+    <p id="death-msg" class="msg"></p>
+  </div>
+
+  <div class="overlay" id="shop-overlay">
+    <h1 class="win">SHOP</h1>
+    <p>🪙 balance: <span id="shopCoins">0</span></p>
+    <div class="shop-item">
+      <div class="shop-item-info">
+        <span class="shop-item-title">❤️ Extra Heart</span>
+        <span class="shop-item-price">900 🪙</span>
+      </div>
+      <button class="btn" id="shop-buy-heart">BUY</button>
+    </div>
+    <p id="shop-msg" class="msg"></p>
+    <button class="btn secondary" id="shop-close">CLOSE</button>
+  </div>
+
+  <div class="overlay" id="settings-overlay">
+    <h1 class="win">SETTINGS</h1>
+    <div class="settings-row">
+      <span>Music</span>
+      <button class="toggle-btn" id="toggle-music">ON</button>
+    </div>
+    <div class="settings-row">
+      <span>Sound Effects</span>
+      <button class="toggle-btn" id="toggle-sfx">ON</button>
+    </div>
+    <button class="btn secondary" id="settings-close">CLOSE</button>
+  </div>
+</div>
+
+<script>
+
+(function(){
+  "use strict";
+
+  /* ============================================================
+     RAGE RUN — ENDLESS MODE
+     No discrete levels: the world generates procedurally forever
+     as the player runs right. Difficulty ramps with distance and
+     then holds at max — the run only ends when the player dies.
+     Sections:
+       1. Canvas setup
+       2. Input
+       3. Seeded RNG + Difficulty Manager
+       4. Trap System (modules)
+       5. Endless World Generator (streams platforms/traps ahead
+          of the camera, prunes what falls far behind)
+       6. Entities + run lifecycle
+       7. Physics / Collision
+       8. Camera
+       9. Death / Restart
+      10. Render
+      11. Game loop
+  ============================================================ */
+
+  const clamp = (v, min, max)=> Math.max(min, Math.min(max, v));
+  const lerp = (a, b, t)=> a + (b - a) * t;
+
+  // ---------- 1. Canvas setup ----------
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const VIEW_W = 480;
+  const VIEW_H = 288;
+  let scaleFactor = 2;
+
+  function resizeCanvas(){
+    const maxW = window.innerWidth;
+    const maxH = window.innerHeight;
+    // Allow fractional scaling so the canvas always fits the viewport —
+    // forcing a minimum of 1x previously caused horizontal overflow on
+    // phones narrower than the game's native 480px width.
+    scaleFactor = Math.max(0.38, Math.min(maxW / VIEW_W, maxH / VIEW_H));
+    canvas.style.width = (VIEW_W * scaleFactor) + 'px';
+    canvas.style.height = (VIEW_H * scaleFactor) + 'px';
+    canvas.width = VIEW_W;
+    canvas.height = VIEW_H;
+
+    const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    document.getElementById('touch-controls').classList.toggle('visible', isTouch);
+    document.getElementById('hint').style.display = isTouch ? 'none' : 'block';
+  }
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', resizeCanvas);
+  resizeCanvas();
+
+  // ---------- Core physics constants ----------
+  const GRAVITY = 0.62;
+  const MAX_FALL_SPEED = 12;
+  const MOVE_SPEED = 2.4;
+  const AIR_CONTROL = 0.7;
+  const FRICTION = 0.78;
+  const JUMP_VELOCITY = -10.4;
+  const DEATH_Y = 420;
+  const DEATH_ANIM_MS = 420;
+
+  // ---------- 2. Input ----------
+  const input = { left:false, right:false, jumpPressed:false, jumpHeld:false };
+
+  // Extra safety net against page scroll/zoom on mobile browsers that
+  // don't fully honor the CSS touch-action / viewport meta settings.
+  document.addEventListener('touchmove', (e)=>{ e.preventDefault(); }, { passive:false });
+  document.addEventListener('gesturestart', (e)=>{ e.preventDefault(); });
+  document.addEventListener('dblclick', (e)=>{ e.preventDefault(); });
+
+  window.addEventListener('keydown', (e)=>{
+    if (['ArrowLeft','KeyA'].includes(e.code)) input.left = true;
+    if (['ArrowRight','KeyD'].includes(e.code)) input.right = true;
+    if (['Space','ArrowUp','KeyW'].includes(e.code)){
+      if (!input.jumpHeld) input.jumpPressed = true;
+      input.jumpHeld = true;
+      e.preventDefault();
+    }
+    if (e.code === 'KeyR') startNewRun();
+  });
+  window.addEventListener('keyup', (e)=>{
+    if (['ArrowLeft','KeyA'].includes(e.code)) input.left = false;
+    if (['ArrowRight','KeyD'].includes(e.code)) input.right = false;
+    if (['Space','ArrowUp','KeyW'].includes(e.code)) input.jumpHeld = false;
+  });
+
+  function bindTouchButton(el, onDown, onUp){
+    const down = (e)=>{ e.preventDefault(); el.classList.add('pressed'); onDown(); };
+    const up = (e)=>{ e.preventDefault(); el.classList.remove('pressed'); onUp(); };
+    el.addEventListener('touchstart', down, {passive:false});
+    el.addEventListener('touchend', up, {passive:false});
+    el.addEventListener('touchcancel', up, {passive:false});
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+  }
+  bindTouchButton(document.getElementById('left-btn'),
+    ()=>input.left = true, ()=>input.left = false);
+  bindTouchButton(document.getElementById('right-btn'),
+    ()=>input.right = true, ()=>input.right = false);
+  bindTouchButton(document.getElementById('jump-btn'),
+    ()=>{ if(!input.jumpHeld) input.jumpPressed = true; input.jumpHeld = true; },
+    ()=>input.jumpHeld = false);
+
+  // ============================================================
+  // 3. SEEDED RNG + DIFFICULTY MANAGER
+  // ============================================================
+
+  function mulberry32(seed){
+    let a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashSeedString(str){
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+
+  const randRange = (rng, min, max)=> min + rng() * (max - min);
+  const chance = (rng, p)=> rng() < p;
+  const pick = (rng, arr)=> arr[Math.floor(rng() * arr.length)];
+
+  // Max horizontal distance the player's jump can cover across a vertical
+  // change of `dy` (positive = lower/easier), derived from the same
+  // physics constants the engine itself uses.
+  function computeMaxGapForDy(dy){
+    const a = 0.5 * GRAVITY, b = JUMP_VELOCITY, c = -dy;
+    const disc = b*b - 4*a*c;
+    if (disc < 0) return 0;
+    const t = (-b + Math.sqrt(disc)) / (2*a);
+    if (!isFinite(t) || t <= 0) return 0;
+    return MOVE_SPEED * t;
+  }
+  const MAX_RISE_SAFE = 0.82 * ((JUMP_VELOCITY*JUMP_VELOCITY) / (2*GRAVITY));
+  const MAX_DROP_CAP = 95;
+
+  const MIN_GAP = 46;
+  const SAFETY_NORMAL = 0.72;
+  const MIN_TRAP_PLATFORM_W = 60;
+  const HAZARD_SAFETY_PAD = 10;  // flat px reaction buffer for hazard-adjacent jumps
+  const HAZARD_RESERVE = 30;     // min trap width (22) + exit margin (8), reserved up front
+  const MIN_GAP_HAZARD = 30;     // a gap feeding into a hazarded platform may be shorter than normal
+
+  // Difficulty ramps with how many platforms have been generated so far,
+  // then holds at its hardest setting forever — the run has no ceiling.
+  const DIFFICULTY_RAMP_NODES = 110;
+
+  function getDifficultyParams(nodeIndex){
+    const t = clamp(nodeIndex / DIFFICULTY_RAMP_NODES, 0, 1);
+
+    const hazardPool = ['spikes'];
+    if (nodeIndex >= 0)  hazardPool.push('saw');
+    if (nodeIndex >= 2)  hazardPool.push('delayedTrap');
+    if (nodeIndex >= 8)  hazardPool.push('hiddenSpikes');
+
+    const platformVariantPool = [];
+    if (nodeIndex >= 1)  platformVariantPool.push('fallingPlatform');
+    if (nodeIndex >= 3)  platformVariantPool.push('crumblingFloor');
+    if (nodeIndex >= 5)  platformVariantPool.push('movingPlatform');
+    if (nodeIndex >= 12) platformVariantPool.push('disappearingPlatform');
+
+    // Overhead hazards (Part 2): trigger by proximity, drop from above.
+    const overheadPool = [];
+    if (nodeIndex >= 4)  overheadPool.push('fallingObject');
+    if (nodeIndex >= 8)  overheadPool.push('fallingCeiling');
+
+    // Corridor hazards (Part 2): solid + lethal obstacles placed in gaps
+    // alongside (or instead of) a saw.
+    const corridorPool = [];
+    if (nodeIndex >= 6) corridorPool.push('movingWall');
+
+    // Deception traps (Part 1 + 2): gap-based decoys (fakeFloor /
+    // hiddenPlatform) and standalone props that punish or disorient
+    // rather than kill outright.
+    const gapDeceptionPool = [];
+    if (nodeIndex >= 0) gapDeceptionPool.push('fakeFloor', 'hiddenPlatform');
+
+    const propDeceptionPool = [];
+    if (nodeIndex >= 1)  propDeceptionPool.push('fakeSavePoint');
+    if (nodeIndex >= 2)  propDeceptionPool.push('fakeDoor');
+    if (nodeIndex >= 3)  propDeceptionPool.push('reversedControls');
+    if (nodeIndex >= 5)  propDeceptionPool.push('lockingCage');
+    if (nodeIndex >= 8)  propDeceptionPool.push('deceptivePortal');
+
+    return {
+      gapBase: lerp(56, 80, t),
+      gapVariance: lerp(8, 20, t),
+      heightVariance: lerp(16, 46, t),
+      minWidth: lerp(74, 56, t),
+      maxWidth: lerp(140, 92, t),
+      // Trap density cranked up across the board so arenas are never
+      // empty stretches — every platform should feel like it might hide
+      // (or obviously hold) something.
+      trapChance: lerp(0.65, 0.97, t),
+      sawGapChance: lerp(0.45, 0.75, t),
+      platformVariantChance: lerp(0.32, 0.62, t),
+      trapComboChance: lerp(0.20, 0.55, t),
+      sawSpeed: lerp(1.1, 1.9, t),
+      gapDeceptionChance: lerp(0.35, 0.55, t),
+      propDeceptionChance: lerp(0.30, 0.50, t),
+      overheadChance: lerp(0.32, 0.55, t),
+      corridorChance: lerp(0.30, 0.55, t),
+      unlockedTraps: {
+        hazard: hazardPool, platformVariant: platformVariantPool,
+        gapDeception: gapDeceptionPool, propDeception: propDeceptionPool,
+        overhead: overheadPool, corridor: corridorPool
+      }
+    };
+  }
+
+  // ============================================================
+  // 4. TRAP SYSTEM — modules unchanged; still fully independent and
+  //    configurable via position/size/speed/direction/activation-delay.
+  // ============================================================
+
+  function defaultAabbHit(trap, player, inset){
+    inset = inset || 0;
+    const box = { x: trap.x + inset, y: trap.y + inset, w: trap.w - inset*2, h: trap.h - inset*2 };
+    return player.x < box.x + box.w && player.x + player.w > box.x &&
+           player.y < box.y + box.h && player.y + player.h > box.y;
+  }
+  function circleHit(cx, cy, r, player){
+    const closestX = clamp(cx, player.x, player.x + player.w);
+    const closestY = clamp(cy, player.y, player.y + player.h);
+    const dx = cx - closestX, dy = cy - closestY;
+    return (dx*dx + dy*dy) < r*r;
+  }
+  function drawSpikeRow(trap, alpha){
+    const count = Math.max(1, Math.round(trap.w / 9));
+    const step = trap.w / count;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#ff3b4e';
+    ctx.shadowColor = '#ff3b4e';
+    ctx.shadowBlur = 6;
+    for (let i=0; i<count; i++){
+      const bx = trap.x - camera.x + i*step;
+      ctx.beginPath();
+      if (trap.direction === 'up'){
+        ctx.moveTo(bx, trap.y + trap.h - camera.y);
+        ctx.lineTo(bx + step/2, trap.y - camera.y);
+        ctx.lineTo(bx + step, trap.y + trap.h - camera.y);
+      } else if (trap.direction === 'down'){
+        ctx.moveTo(bx, trap.y - camera.y);
+        ctx.lineTo(bx + step/2, trap.y + trap.h - camera.y);
+        ctx.lineTo(bx + step, trap.y - camera.y);
+      } else if (trap.direction === 'left'){
+        const by = trap.y - camera.y + i*(trap.h/count);
+        ctx.moveTo(trap.x + trap.w - camera.x, by);
+        ctx.lineTo(trap.x - camera.x, by + trap.h/count/2);
+        ctx.lineTo(trap.x + trap.w - camera.x, by + trap.h/count);
+      } else {
+        const by2 = trap.y - camera.y + i*(trap.h/count);
+        ctx.moveTo(trap.x - camera.x, by2);
+        ctx.lineTo(trap.x + trap.w - camera.x, by2 + trap.h/count/2);
+        ctx.lineTo(trap.x - camera.x, by2 + trap.h/count);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  const TRAP_MODULES = {
+
+    spikes: {
+      init(cfg){
+        return {
+          direction: cfg.direction || 'up',
+          armDelay: cfg.armDelay || 0,
+          armed: (cfg.armDelay || 0) <= 0,
+          timer: 0
+        };
+      },
+      update(trap, dtMs){
+        if (!trap.armed){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.armDelay) trap.armed = true;
+        }
+      },
+      isSolid(){ return false; },
+      isLethal(trap){ return trap.armed; },
+      hit(trap, player){ return defaultAabbHit(trap, player, 3); },
+      draw(trap){ drawSpikeRow(trap, trap.armed ? 1 : 0.3); }
+    },
+
+    saw: {
+      init(cfg){
+        return {
+          cx: cfg.x, cy: cfg.y,
+          radius: cfg.radius || 14,
+          speed: cfg.speed || 1.4,
+          axis: cfg.axis || 'horizontal',
+          range: cfg.range || 100,
+          rot: 0,
+          t: cfg.phase || 0
+        };
+      },
+      update(trap, dtMs){
+        trap.t += dtMs * 0.001 * trap.speed;
+        trap.rot += dtMs * 0.012;
+        const offset = Math.sin(trap.t) * (trap.range/2);
+        if (trap.axis === 'horizontal'){ trap.x = trap.cx + offset; trap.y = trap.cy; }
+        else { trap.x = trap.cx; trap.y = trap.cy + offset; }
+      },
+      isSolid(){ return false; },
+      isLethal(){ return true; },
+      hit(trap, player){ return circleHit(trap.x, trap.y, trap.radius - 2, player); },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(trap.rot);
+        ctx.shadowColor = '#ff3b4e';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#ffb0ba';
+        ctx.fillStyle = '#2a0d14';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, trap.radius, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+        const teeth = 8;
+        for (let i=0;i<teeth;i++){
+          const a = (i / teeth) * Math.PI * 2;
+          const tx = Math.cos(a) * trap.radius;
+          const ty = Math.sin(a) * trap.radius;
+          const tx2 = Math.cos(a) * (trap.radius + 5);
+          const ty2 = Math.sin(a) * (trap.radius + 5);
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(tx2, ty2);
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#ff3b4e';
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    },
+
+    fallingPlatform: {
+      init(cfg){
+        return {
+          homeX: cfg.x, homeY: cfg.y,
+          triggerDelay: cfg.triggerDelay != null ? cfg.triggerDelay : 400,
+          fallSpeed: cfg.fallSpeed || 240,
+          respawnDelay: cfg.respawnDelay != null ? cfg.respawnDelay : 1800,
+          fsm: 'idle',
+          timer: 0,
+          vy: 0,
+          touchedThisFrame: false,
+          touchedLastFrame: false
+        };
+      },
+      update(trap, dtMs){
+        const dt = dtMs / 1000;
+        if (trap.fsm === 'idle'){
+          if (trap.touchedLastFrame){ trap.fsm = 'shaking'; trap.timer = 0; }
+        } else if (trap.fsm === 'shaking'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.triggerDelay){ trap.fsm = 'falling'; trap.vy = 0; }
+        } else if (trap.fsm === 'falling'){
+          trap.vy += trap.fallSpeed * dt * 2;
+          trap.y += trap.vy * dt;
+          if (trap.y > trap.homeY + 260){ trap.fsm = 'gone'; trap.timer = 0; }
+        } else if (trap.fsm === 'gone'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.respawnDelay){
+            trap.x = trap.homeX; trap.y = trap.homeY; trap.fsm = 'idle'; trap.timer = 0;
+          }
+        }
+        trap.touchedLastFrame = trap.touchedThisFrame;
+        trap.touchedThisFrame = false;
+      },
+      isSolid(trap){ return trap.fsm === 'idle' || trap.fsm === 'shaking'; },
+      isLethal(){ return false; },
+      hit(){ return false; },
+      draw(trap){
+        if (trap.fsm === 'gone') return;
+        let jitter = 0;
+        if (trap.fsm === 'shaking') jitter = Math.sin(trap.timer * 0.08) * 1.6;
+        const sx = trap.x - camera.x + jitter, sy = trap.y - camera.y;
+        ctx.fillStyle = trap.fsm === 'shaking' ? '#3a1a1a' : '#1c1230';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        const edge = trap.fsm === 'shaking' ? '#ffb02e' : '#8b5cf6';
+        ctx.fillStyle = edge;
+        ctx.fillRect(sx, sy, trap.w, 2);
+        ctx.save();
+        ctx.shadowColor = edge; ctx.shadowBlur = 6;
+        ctx.fillRect(sx, sy, trap.w, 2);
+        ctx.restore();
+      }
+    },
+
+    movingPlatform: {
+      init(cfg){
+        return {
+          baseX: cfg.x, baseY: cfg.y,
+          speed: cfg.speed || 1.0,
+          axis: cfg.axis || 'horizontal',
+          range: cfg.range || 100,
+          t: cfg.phase || 0,
+          dx: 0, dy: 0
+        };
+      },
+      update(trap, dtMs){
+        const prevX = trap.x, prevY = trap.y;
+        trap.t += dtMs * 0.001 * trap.speed;
+        const offset = Math.sin(trap.t) * (trap.range/2);
+        if (trap.axis === 'horizontal'){ trap.x = trap.baseX + offset; trap.y = trap.baseY; }
+        else { trap.x = trap.baseX; trap.y = trap.baseY + offset; }
+        trap.dx = trap.x - prevX;
+        trap.dy = trap.y - prevY;
+      },
+      isSolid(){ return true; },
+      isLethal(){ return false; },
+      hit(){ return false; },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.fillStyle = '#12202f';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.fillStyle = '#3ef6ff';
+        ctx.save();
+        ctx.shadowColor = '#3ef6ff'; ctx.shadowBlur = 7;
+        ctx.fillRect(sx, sy, trap.w, 2);
+        ctx.restore();
+      }
+    },
+
+    hiddenSpikes: {
+      init(cfg){
+        return {
+          direction: cfg.direction || 'up',
+          triggerRadius: cfg.triggerRadius || 46,
+          activationDelay: cfg.activationDelay != null ? cfg.activationDelay : 260,
+          state: 'hidden',
+          timer: 0
+        };
+      },
+      update(trap, dtMs, ctx_){
+        const player = ctx_.player;
+        if (trap.state === 'hidden'){
+          const cx1 = trap.x + trap.w/2, cy1 = trap.y + trap.h/2;
+          const px = player.x + player.w/2, py = player.y + player.h/2;
+          const d = Math.hypot(cx1-px, cy1-py);
+          if (d <= trap.triggerRadius){ trap.state = 'triggered'; trap.timer = 0; }
+        } else if (trap.state === 'triggered'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.activationDelay) trap.state = 'revealed';
+        }
+      },
+      isSolid(){ return false; },
+      isLethal(trap){ return trap.state === 'revealed'; },
+      hit(trap, player){ return defaultAabbHit(trap, player, 3); },
+      draw(trap){
+        if (trap.state === 'hidden') return;
+        if (trap.state === 'triggered'){
+          const pulse = 0.25 + Math.sin(performance.now()/60) * 0.15;
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.fillStyle = '#ffb02e';
+          ctx.fillRect(trap.x - camera.x, trap.y - camera.y, trap.w, 3);
+          ctx.restore();
+          return;
+        }
+        drawSpikeRow(trap, 1);
+      }
+    },
+
+    disappearingPlatform: {
+      init(cfg){
+        return {
+          visibleDuration: cfg.visibleDuration != null ? cfg.visibleDuration : 1400,
+          invisibleDuration: cfg.invisibleDuration != null ? cfg.invisibleDuration : 900,
+          cycleTimer: cfg.phaseOffset || 0,
+          visible: true
+        };
+      },
+      update(trap, dtMs){
+        trap.cycleTimer += dtMs;
+        const total = trap.visibleDuration + trap.invisibleDuration;
+        const phase = trap.cycleTimer % total;
+        trap.visible = phase < trap.visibleDuration;
+        trap.warn = trap.visible && (trap.visibleDuration - phase) < 320;
+      },
+      isSolid(trap){ return trap.visible; },
+      isLethal(){ return false; },
+      hit(){ return false; },
+      draw(trap){
+        if (!trap.visible){
+          ctx.save();
+          ctx.globalAlpha = 0.12;
+          ctx.strokeStyle = '#ff2f92';
+          ctx.strokeRect(trap.x - camera.x, trap.y - camera.y, trap.w, trap.h);
+          ctx.restore();
+          return;
+        }
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        if (trap.warn) ctx.globalAlpha = 0.5 + Math.sin(performance.now()/40)*0.4;
+        ctx.fillStyle = '#241026';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.fillStyle = '#ff2f92';
+        ctx.shadowColor = '#ff2f92'; ctx.shadowBlur = 6;
+        ctx.fillRect(sx, sy, trap.w, 2);
+        ctx.restore();
+      }
+    },
+
+    // ===== DECEPTION TRAPS (Part 1) =====
+
+    // 7) FAKE FLOOR — looks almost exactly like real ground, but has no
+    // collision at all. A very faint duller edge-glow is the only tell.
+    fakeFloor: {
+      init(){ return {}; },
+      update(){},
+      isSolid(){ return false; },
+      isLethal(){ return false; },
+      hit(){ return false; },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        const flicker = 0.82 + Math.sin(performance.now()/480 + trap.x)*0.06;
+        ctx.save();
+        ctx.globalAlpha = flicker;
+        ctx.fillStyle = '#1c1230';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.fillStyle = '#6b4fae'; // duller than a real platform's #8b5cf6 edge — the only tell
+        ctx.fillRect(sx, sy, trap.w, 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(sx, sy + trap.h - 4, trap.w, 4);
+        ctx.restore();
+      }
+    },
+
+    // 8) HIDDEN PLATFORM — the friendly twin of hidden spikes: always
+    // solid (fair — it never fails to catch you), just invisible until
+    // the player gets close, so it reads as a risky leap of faith.
+    hiddenPlatform: {
+      init(cfg){ return { triggerRadius: cfg.triggerRadius || 60, revealed:false }; },
+      update(trap, dtMs, ctx_){
+        const player = ctx_.player;
+        const cx = trap.x + trap.w/2, cy = trap.y + trap.h/2;
+        const d = Math.hypot(cx-(player.x+player.w/2), cy-(player.y+player.h/2));
+        trap.revealed = d <= trap.triggerRadius;
+      },
+      isSolid(){ return true; },
+      isLethal(){ return false; },
+      hit(){ return false; },
+      draw(trap){
+        if (!trap.revealed) return;
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        ctx.setLineDash([4,3]);
+        ctx.strokeStyle = '#3ef6ff';
+        ctx.globalAlpha = 0.85;
+        ctx.strokeRect(sx, sy, trap.w, trap.h);
+        ctx.fillStyle = 'rgba(62,246,255,0.10)';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.restore();
+      }
+    },
+
+    // 9) DELAYED TRAP — a normal-looking tile you walk right over. Touch
+    // it and it stays passable but rumbles as a warning, then erupts
+    // into lethal spikes. Non-solid throughout — the real platform
+    // beneath it is what actually holds the player up.
+    delayedTrap: {
+      init(cfg){
+        return {
+          triggerDelay: cfg.triggerDelay != null ? cfg.triggerDelay : 480,
+          direction: cfg.direction || 'up',
+          fsm: 'idle', timer: 0
+        };
+      },
+      update(trap, dtMs, ctx_){
+        if (trap.fsm === 'idle'){
+          if (defaultAabbHit(trap, ctx_.player, 2)){ trap.fsm = 'warning'; trap.timer = 0; }
+        } else if (trap.fsm === 'warning'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.triggerDelay) trap.fsm = 'erupted';
+        }
+      },
+      isSolid(){ return false; },
+      isLethal(trap){ return trap.fsm === 'erupted'; },
+      hit(trap, player){ return defaultAabbHit(trap, player, 3); },
+      draw(trap){
+        if (trap.fsm === 'erupted'){ drawSpikeRow(trap, 1); return; }
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        const warn = trap.fsm === 'warning';
+        ctx.save();
+        if (warn) ctx.globalAlpha = 0.6 + Math.sin(performance.now()/50)*0.3;
+        ctx.fillStyle = warn ? '#3a1a1a' : '#1c1230';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.fillStyle = warn ? '#ffb02e' : '#8b5cf6';
+        ctx.fillRect(sx, sy, trap.w, 2);
+        ctx.restore();
+      }
+    },
+
+    // 10) REVERSED CONTROLS — a small orb; touching it flips left/right
+    // input for a few seconds. Non-solid, non-lethal, purely disorienting.
+    reversedControls: {
+      init(cfg){ return { consumed:false, duration: cfg.duration || 3200 }; },
+      update(){},
+      isSolid(){ return false; },
+      isLethal(){ return false; },
+      isEffect: true,
+      hit(trap, player){ return !trap.consumed && defaultAabbHit(trap, player, 0); },
+      onTouch(trap){
+        trap.consumed = true;
+        reverseControlsTimer = trap.duration;
+        spawnFloatingText(trap.x + trap.w/2, trap.y, 'REVERSED!', '#ff2f92');
+      },
+      draw(trap){
+        if (trap.consumed) return;
+        const sx = trap.x - camera.x + trap.w/2, sy = trap.y - camera.y + trap.h/2;
+        const pulse = 0.6 + Math.sin(performance.now()/200)*0.3;
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#ff2f92';
+        ctx.shadowColor = '#ff2f92'; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    },
+
+    // 11) FAKE DOOR — decorative, looks like a goal/exit. Walking through
+    // it does nothing but flash a troll message. Non-solid, non-lethal.
+    fakeDoor: {
+      init(){ return { consumed:false }; },
+      update(){},
+      isSolid(){ return false; },
+      isLethal(){ return false; },
+      isEffect: true,
+      hit(trap, player){ return !trap.consumed && defaultAabbHit(trap, player, 0); },
+      onTouch(trap){
+        trap.consumed = true;
+        spawnFloatingText(trap.x + trap.w/2, trap.y - 6, 'NOT THE EXIT.', '#8b5cf6');
+      },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        const pulse = 0.4 + Math.sin(performance.now()/300)*0.1;
+        ctx.save();
+        ctx.strokeStyle = '#8b5cf6'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#8b5cf6'; ctx.shadowBlur = 8 + pulse*6;
+        ctx.strokeRect(sx, sy, 16, 34);
+        ctx.fillStyle = `rgba(139,92,246,${0.1 + pulse*0.1})`;
+        ctx.fillRect(sx+1, sy+1, 14, 32);
+        ctx.restore();
+      }
+    },
+
+    // 12) FAKE SAVE POINT — a checkpoint-looking beacon. Touching it
+    // flashes "SAVED?" and does nothing real — there is no save system.
+    fakeSavePoint: {
+      init(){ return { consumed:false }; },
+      update(){},
+      isSolid(){ return false; },
+      isLethal(){ return false; },
+      isEffect: true,
+      hit(trap, player){ return !trap.consumed && defaultAabbHit(trap, player, 0); },
+      onTouch(trap){
+        trap.consumed = true;
+        spawnFloatingText(trap.x + trap.w/2, trap.y - 6, 'SAVED?', '#3ef6ff');
+      },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        ctx.fillStyle = trap.consumed ? '#3a3550' : '#3ef6ff';
+        ctx.shadowColor = '#3ef6ff'; ctx.shadowBlur = trap.consumed ? 0 : 8;
+        ctx.beginPath();
+        ctx.moveTo(sx+6, sy+16); ctx.lineTo(sx+6, sy); ctx.lineTo(sx+14, sy+4); ctx.lineTo(sx+6, sy+8);
+        ctx.closePath(); ctx.fill();
+        ctx.fillRect(sx+5, sy, 2, 16);
+        ctx.restore();
+      }
+    },
+
+    // ===== PHYSICAL / STRUCTURAL TRAPS (Part 2) =====
+
+    // 13) FALLING CEILING — a wide spiked block overhead that drops the
+    // instant the player passes beneath it, then retracts and resets.
+    fallingCeiling: {
+      init(cfg){
+        return {
+          homeY: cfg.y,
+          triggerRadius: cfg.triggerRadius || 50,
+          fallSpeed: cfg.fallSpeed || 300,
+          floorY: cfg.floorY, // how far down it can fall before stopping
+          resetDelay: cfg.resetDelay != null ? cfg.resetDelay : 1600,
+          fsm: 'idle', timer: 0, vy: 0
+        };
+      },
+      update(trap, dtMs, ctx_){
+        const player = ctx_.player;
+        if (trap.fsm === 'idle'){
+          const cx = trap.x + trap.w/2;
+          if (Math.abs((player.x+player.w/2) - cx) <= trap.triggerRadius){ trap.fsm = 'warning'; trap.timer = 0; }
+        } else if (trap.fsm === 'warning'){
+          trap.timer += dtMs;
+          if (trap.timer >= 260){ trap.fsm = 'falling'; trap.vy = 0; }
+        } else if (trap.fsm === 'falling'){
+          trap.vy += trap.fallSpeed * (dtMs/1000) * 2;
+          trap.y += trap.vy * (dtMs/1000);
+          if (trap.y >= trap.floorY){ trap.y = trap.floorY; trap.fsm = 'down'; trap.timer = 0; }
+        } else if (trap.fsm === 'down'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.resetDelay){ trap.y = trap.homeY; trap.fsm = 'idle'; trap.timer = 0; }
+        }
+      },
+      isSolid(){ return false; },
+      isLethal(trap){ return trap.fsm === 'falling' || trap.fsm === 'down'; },
+      hit(trap, player){ return defaultAabbHit(trap, player, 2); },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        if (trap.fsm === 'warning') ctx.globalAlpha = 0.6 + Math.sin(performance.now()/40)*0.3;
+        ctx.fillStyle = '#2a0d14';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.restore();
+        drawSpikeRow({ x:trap.x, y:trap.y+trap.h-6, w:trap.w, h:10, direction:'down' }, 1);
+      }
+    },
+
+    // 14) FALLING OBJECT — a single weighted ball anchored above; drops
+    // when the player passes underneath. Narrower than a falling ceiling.
+    fallingObject: {
+      init(cfg){
+        return {
+          homeY: cfg.y,
+          triggerRadius: cfg.triggerRadius || 36,
+          fallSpeed: cfg.fallSpeed || 320,
+          floorY: cfg.floorY,
+          resetDelay: cfg.resetDelay != null ? cfg.resetDelay : 1500,
+          radius: cfg.radius || 8,
+          fsm: 'idle', timer: 0, vy: 0
+        };
+      },
+      update(trap, dtMs, ctx_){
+        const player = ctx_.player;
+        if (trap.fsm === 'idle'){
+          if (Math.abs((player.x+player.w/2) - trap.x) <= trap.triggerRadius){ trap.fsm = 'warning'; trap.timer = 0; }
+        } else if (trap.fsm === 'warning'){
+          trap.timer += dtMs;
+          if (trap.timer >= 220){ trap.fsm = 'falling'; trap.vy = 0; }
+        } else if (trap.fsm === 'falling'){
+          trap.vy += trap.fallSpeed * (dtMs/1000) * 2;
+          trap.y += trap.vy * (dtMs/1000);
+          if (trap.y >= trap.floorY){ trap.fsm = 'down'; trap.timer = 0; }
+        } else if (trap.fsm === 'down'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.resetDelay){ trap.y = trap.homeY; trap.fsm = 'idle'; trap.timer = 0; }
+        }
+      },
+      isSolid(){ return false; },
+      isLethal(trap){ return trap.fsm === 'falling' || trap.fsm === 'down'; },
+      hit(trap, player){ return trap.fsm !== 'down' ? circleHit(trap.x, trap.y, trap.radius, player) : false; },
+      draw(trap){
+        if (trap.fsm === 'down') return;
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        if (trap.fsm === 'warning') ctx.globalAlpha = 0.5 + Math.sin(performance.now()/40)*0.4;
+        ctx.fillStyle = '#2a0d14';
+        ctx.strokeStyle = '#ff3b4e'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff3b4e'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(sx, sy, trap.radius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        if (trap.fsm === 'idle'){
+          ctx.strokeStyle = 'rgba(139,92,246,0.4)';
+          ctx.beginPath(); ctx.moveTo(sx, sy-trap.radius); ctx.lineTo(sx, sy - 26); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    },
+
+    // 15) MOVING WALL — a solid, lethal wall segment that sweeps back and
+    // forth across a corridor. Touching it from any side is instant death
+    // (crushed or struck) — the hit box is slightly larger than its solid
+    // box so contact still registers even once collision has pushed the
+    // player flush against it.
+    movingWall: {
+      init(cfg){
+        return { baseX: cfg.x, baseY: cfg.y, speed: cfg.speed || 1.0, range: cfg.range || 70, t: cfg.phase || 0, dx: 0 };
+      },
+      update(trap, dtMs){
+        const prevX = trap.x;
+        trap.t += dtMs * 0.001 * trap.speed;
+        trap.x = trap.baseX + Math.sin(trap.t) * (trap.range/2);
+        trap.dx = trap.x - prevX;
+      },
+      isSolid(){ return true; },
+      isLethal(){ return true; },
+      hit(trap, player){ return defaultAabbHit(trap, player, -3); },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        ctx.fillStyle = '#241017';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.fillStyle = '#ff3b4e';
+        ctx.shadowColor = '#ff3b4e'; ctx.shadowBlur = 8;
+        for (let i=0; i<trap.h; i+=10){
+          ctx.fillRect(sx+2, sy+i+2, trap.w-4, 4);
+        }
+        ctx.restore();
+      }
+    },
+
+    // 16) CRUMBLING FLOOR — like a falling platform, but shorter fuse and
+    // a jagged "about to shatter" look. Same width-aware timing safety.
+    crumblingFloor: {
+      init(cfg){
+        return {
+          homeX: cfg.x, homeY: cfg.y,
+          triggerDelay: cfg.triggerDelay != null ? cfg.triggerDelay : 260,
+          fallSpeed: cfg.fallSpeed || 300,
+          respawnDelay: cfg.respawnDelay != null ? cfg.respawnDelay : 1600,
+          fsm: 'idle', timer: 0, vy: 0, touchedThisFrame:false, touchedLastFrame:false
+        };
+      },
+      update(trap, dtMs){
+        const dt = dtMs/1000;
+        if (trap.fsm === 'idle'){
+          if (trap.touchedLastFrame){ trap.fsm = 'shaking'; trap.timer = 0; }
+        } else if (trap.fsm === 'shaking'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.triggerDelay){ trap.fsm = 'falling'; trap.vy = 0; }
+        } else if (trap.fsm === 'falling'){
+          trap.vy += trap.fallSpeed * dt * 2;
+          trap.y += trap.vy * dt;
+          if (trap.y > trap.homeY + 260){ trap.fsm = 'gone'; trap.timer = 0; }
+        } else if (trap.fsm === 'gone'){
+          trap.timer += dtMs;
+          if (trap.timer >= trap.respawnDelay){ trap.x = trap.homeX; trap.y = trap.homeY; trap.fsm = 'idle'; trap.timer = 0; }
+        }
+        trap.touchedLastFrame = trap.touchedThisFrame;
+        trap.touchedThisFrame = false;
+      },
+      isSolid(trap){ return trap.fsm === 'idle' || trap.fsm === 'shaking'; },
+      isLethal(){ return false; },
+      hit(){ return false; },
+      draw(trap){
+        if (trap.fsm === 'gone') return;
+        let jitter = trap.fsm === 'shaking' ? Math.sin(trap.timer*0.14)*2 : 0;
+        const sx = trap.x - camera.x + jitter, sy = trap.y - camera.y;
+        ctx.save();
+        ctx.fillStyle = trap.fsm === 'shaking' ? '#3a1a1a' : '#1c1230';
+        ctx.fillRect(sx, sy, trap.w, trap.h);
+        ctx.strokeStyle = trap.fsm === 'shaking' ? '#ffb02e' : '#8b5cf6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i=6; i<trap.w; i+=14){ ctx.moveTo(sx+i, sy); ctx.lineTo(sx+i-4, sy+trap.h); }
+        ctx.stroke();
+        ctx.restore();
+      }
+    },
+
+    // 17) DECEPTIVE PORTAL — looks like a glowing reward. Touching it
+    // punishes: knocks the player backward and mocks them. Non-lethal.
+    deceptivePortal: {
+      init(cfg){ return { consumed:false, knockback: cfg.knockback || 170 }; },
+      update(){},
+      isSolid(){ return false; },
+      isLethal(){ return false; },
+      isEffect: true,
+      hit(trap, player){ return !trap.consumed && defaultAabbHit(trap, player, 0); },
+      onTouch(trap){
+        trap.consumed = true;
+        player.x = Math.max(0, player.x - trap.knockback);
+        player.vx = 0;
+        spawnFloatingText(trap.x + trap.w/2, trap.y - 8, 'GOTCHA!', '#ff2f92');
+      },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        const pulse = 0.55 + Math.sin(performance.now()/220)*0.3;
+        ctx.save();
+        ctx.globalAlpha = trap.consumed ? 0.15 : 1;
+        ctx.strokeStyle = '#ff2f92';
+        ctx.shadowColor = '#ff2f92'; ctx.shadowBlur = 12 + pulse*8;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(sx+trap.w/2, sy+trap.h/2, trap.w/2, trap.h/2, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = `rgba(255,47,146,${0.15 + pulse*0.15})`;
+        ctx.fill();
+        ctx.restore();
+      }
+    },
+
+    // 18) LOCKING CAGE — bars slam shut when touched, freezing all player
+    // input for a short time. Non-lethal by itself, but wastes precious
+    // reaction time right when something else might be closing in.
+    lockingCage: {
+      init(cfg){ return { consumed:false, lockDuration: cfg.lockDuration || 1400 }; },
+      update(){},
+      isSolid(){ return false; },
+      isLethal(){ return false; },
+      isEffect: true,
+      hit(trap, player){ return !trap.consumed && defaultAabbHit(trap, player, 0); },
+      onTouch(trap){
+        trap.consumed = true;
+        inputLockTimer = trap.lockDuration;
+        spawnFloatingText(trap.x + trap.w/2, trap.y - 6, 'LOCKED!', '#ffb02e');
+      },
+      draw(trap){
+        const sx = trap.x - camera.x, sy = trap.y - camera.y;
+        ctx.save();
+        ctx.globalAlpha = trap.consumed ? 0.25 : 1;
+        ctx.strokeStyle = '#ffb02e';
+        ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 6;
+        ctx.lineWidth = 2;
+        for (let i=0; i<trap.w; i+=6){ ctx.beginPath(); ctx.moveTo(sx+i, sy); ctx.lineTo(sx+i, sy+trap.h); ctx.stroke(); }
+        ctx.restore();
+      }
+    }
+  };
+
+  function createTrap(type, cfg){
+    const mod = TRAP_MODULES[type];
+    return Object.assign({ type, x:cfg.x, y:cfg.y, w:cfg.w || 0, h:cfg.h || 0 }, mod.init(cfg));
+  }
+  function trapBox(trap){ return { x:trap.x, y:trap.y, w:trap.w, h:trap.h, refTrap:trap }; }
+  function updateTraps(dtMs, playerRef){
+    for (const trap of traps) TRAP_MODULES[trap.type].update(trap, dtMs, { player: playerRef });
+  }
+  function getSolidTrapBoxes(){
+    const out = [];
+    for (const trap of traps) if (TRAP_MODULES[trap.type].isSolid(trap)) out.push(trapBox(trap));
+    return out;
+  }
+  function checkTrapLethalHit(player){
+    for (const trap of traps){
+      const mod = TRAP_MODULES[trap.type];
+      if (mod.isLethal(trap) && mod.hit(trap, player)) return trap;
+    }
+    return null;
+  }
+  function drawTraps(){ for (const trap of traps) TRAP_MODULES[trap.type].draw(trap); }
+  function pushTrap(type, cfg){
+    trapConfigs.push({ type, cfg });
+    traps.push(createTrap(type, cfg));
+  }
+
+  // ============================================================
+  // 5. ENDLESS WORLD GENERATOR
+  //    Streams one platform "node" at a time as the player approaches
+  //    the edge of already-generated territory, using a single
+  //    continuing seeded RNG — so a given run seed always produces the
+  //    exact same infinite sequence of platforms and traps. Hazard
+  //    placement on a platform is resolved one node late (once the
+  //    following node's position is known) so every hazard-plus-gap
+  //    combo is guaranteed to fit inside one real jump.
+  // ============================================================
+
+  const BASE_Y = 220;
+  const MIN_PLATFORM_Y = 140;
+  const MAX_PLATFORM_Y = 292;
+  const START_W = 150;
+  const GEN_LOOKAHEAD_PX = 700;   // keep the world generated this far past the player
+  const COIN_CHANCE = 0.20;       // kept low on purpose — coins stay rare and valuable
+  const PRUNE_BEHIND_PX = 500;    // drop platforms/traps this far behind the player
+
+  function buildVariantCfg(type, x, y, w, rng, diff, gap, maxGap){
+    if (type === 'fallingPlatform'){
+      const crossMs = (w / MOVE_SPEED) * 16.67;
+      const triggerDelay = Math.round(clamp(crossMs * 1.4 + 220, 380, 1700));
+      return {
+        x, y, w, h:16,
+        triggerDelay,
+        fallSpeed: Math.round(randRange(rng, 210, 280)),
+        respawnDelay: Math.round(randRange(rng, 1400, 2000))
+      };
+    }
+    if (type === 'crumblingFloor'){
+      // Same width-aware safety as fallingPlatform, but a noticeably
+      // shorter fuse — the whole point is that it feels more urgent.
+      const crossMs = (w / MOVE_SPEED) * 16.67;
+      const triggerDelay = Math.round(clamp(crossMs * 1.15 + 160, 260, 1100));
+      return {
+        x, y, w, h:16,
+        triggerDelay,
+        fallSpeed: Math.round(randRange(rng, 260, 330)),
+        respawnDelay: Math.round(randRange(rng, 1300, 1800))
+      };
+    }
+    if (type === 'movingPlatform'){
+      const slack = Math.max(6, (maxGap - gap) * 1.1);
+      const range = clamp(randRange(rng, 18, 46), 6, slack * 2);
+      return { x, y, w, h:14, speed: diff.sawSpeed * 0.55, axis: 'horizontal', range };
+    }
+    if (type === 'disappearingPlatform'){
+      const crossMs = (w / MOVE_SPEED) * 16.67;
+      const visibleDuration = Math.round(clamp(crossMs * 1.5 + 400, 1100, 2200));
+      const invisibleDuration = Math.round(randRange(rng, 650, 1000));
+      return {
+        x, y, w, h:16, visibleDuration, invisibleDuration,
+        phaseOffset: Math.round(randRange(rng, 0, visibleDuration + invisibleDuration))
+      };
+    }
+    return { x, y, w, h:16 };
+  }
+
+  // Places a hazard on `node`, sized to whatever room is actually left
+  // over once the outgoing gap to `next` is validated under the
+  // stricter hazard-jump margin — never placed by guesswork.
+  function addPlatformHazard(node, next, rng, diff, hazardPool){
+    const groundHazards = hazardPool.filter(h => h === 'spikes' || h === 'hiddenSpikes' || h === 'delayedTrap');
+    if (!groundHazards.length || !next) return;
+    const type = pick(rng, groundHazards);
+
+    const LANDING_CLEARANCE = 26;
+    const EXIT_MARGIN = 8;
+    const outGap = next.x - (node.x + node.w);
+    const outDy = next.y - node.y;
+    const maxGapOut = Math.max(MIN_GAP_HAZARD, computeMaxGapForDy(outDy) - HAZARD_SAFETY_PAD);
+    const slack = maxGapOut - outGap - EXIT_MARGIN;
+    const maxTrapWByPlatform = node.w - LANDING_CLEARANCE - EXIT_MARGIN;
+    const trapW = Math.floor(clamp(Math.min(slack, maxTrapWByPlatform, node.w * 0.4), 0, 56));
+    if (trapW < 22) return;
+
+    const tx = node.x + node.w - EXIT_MARGIN - trapW;
+    const base = { x: tx, y: node.y - 14, w: trapW, h: 14, direction: 'up' };
+    if (type === 'spikes'){
+      pushTrap('spikes', base);
+    } else if (type === 'hiddenSpikes'){
+      pushTrap('hiddenSpikes', Object.assign({}, base, {
+        triggerRadius: Math.round(randRange(rng, 42, 58)),
+        activationDelay: Math.round(randRange(rng, 220, 340))
+      }));
+    } else {
+      // delayedTrap gives a warning rumble before erupting, so it is at
+      // least as forgiving as instant spikes with the same sizing.
+      pushTrap('delayedTrap', Object.assign({}, base, {
+        triggerDelay: Math.round(randRange(rng, 420, 620))
+      }));
+    }
+  }
+
+  // Mutable generation cursor. Re-created fresh by startNewRun().
+  const world = { rng:null, curX:0, curY:BASE_Y, nodeIndex:0, prevNode:null, pendingHazardNode:null, seedStr:'' };
+
+  function generateNextNode(){
+    const diff = getDifficultyParams(world.nodeIndex);
+    const rng = world.rng;
+
+    let dy = randRange(rng, -diff.heightVariance, diff.heightVariance);
+    dy = clamp(dy, -MAX_RISE_SAFE, MAX_DROP_CAP);
+    let targetY = clamp(world.curY + dy, MIN_PLATFORM_Y, MAX_PLATFORM_Y);
+    dy = targetY - world.curY;
+
+    // If the PREVIOUS node is waiting to receive a ground hazard, this
+    // gap must leave real room for it — reserve that room by shrinking
+    // the gap's own ceiling up front (and allowing a shorter minimum
+    // gap here), rather than hoping the random draw happens to
+    // undershoot a merely-stricter cap after the fact. The reserved
+    // ceiling is also never allowed past the same proven-safe ceiling
+    // used for ordinary jumps.
+    let maxGap, gapMin;
+    if (world.pendingHazardNode){
+      const rawMaxGap = computeMaxGapForDy(dy);
+      const safeCeiling = Math.max(MIN_GAP, rawMaxGap * SAFETY_NORMAL);
+      const hazardCeiling = Math.max(MIN_GAP_HAZARD, rawMaxGap - HAZARD_SAFETY_PAD - HAZARD_RESERVE);
+      maxGap = Math.min(safeCeiling, hazardCeiling);
+      gapMin = Math.min(MIN_GAP_HAZARD, maxGap);
+    } else {
+      maxGap = Math.max(MIN_GAP, computeMaxGapForDy(dy) * SAFETY_NORMAL);
+      gapMin = MIN_GAP;
+    }
+    const gap = clamp(randRange(rng, diff.gapBase - diff.gapVariance, diff.gapBase + diff.gapVariance), gapMin, Math.max(gapMin, maxGap));
+
+    const w = Math.round(randRange(rng, diff.minWidth, diff.maxWidth));
+    const x = world.curX + gap;
+
+    const hazardPool = diff.unlockedTraps.hazard;
+    const variantPool = diff.unlockedTraps.platformVariant;
+
+    let variant = 'static', variantCfg = null, wantsHazard = false;
+    if (variantPool.length && chance(rng, diff.platformVariantChance)){
+      variant = pick(rng, variantPool);
+      variantCfg = buildVariantCfg(variant, x, targetY, w, rng, diff, gap, maxGap);
+    } else if (w >= MIN_TRAP_PLATFORM_W && chance(rng, diff.trapChance)){
+      wantsHazard = true; // resolved once the following node is known
+    }
+
+    const node = { x, y: targetY, w, h:20, variant };
+
+    // Saw in the gap leading into this node (only needs prev + current).
+    // Mutually exclusive among saw / combo-saw / moving wall (avoid
+    // stacking two solid/lethal obstacles in one small gap), but the
+    // gap-decoy roll below is independent and can add on top of any of
+    // these — a gap can easily end up with two things happening in it.
+    const prev = world.prevNode;
+    if (hazardPool.includes('saw') && chance(rng, diff.sawGapChance)){
+      const gapSpan = x - (prev.x + prev.w);
+      if (gapSpan > 34){
+        const cx = prev.x + prev.w + gapSpan/2;
+        const cy = (prev.y + targetY)/2 - 6;
+        pushTrap('saw', {
+          x:cx, y:cy, radius: Math.round(randRange(rng, 10, 15)), speed: diff.sawSpeed,
+          axis: chance(rng, 0.5) ? 'horizontal' : 'vertical',
+          range: clamp(gapSpan * 0.5, 24, 70), phase: randRange(rng, 0, Math.PI*2)
+        });
+      }
+    } else if (hazardPool.includes('saw') && chance(rng, diff.trapComboChance)){
+      const gapSpan = x - (prev.x + prev.w);
+      if (gapSpan > 40){
+        const cx = prev.x + prev.w + gapSpan*0.35;
+        const cy = (prev.y + targetY)/2 + 10;
+        pushTrap('saw', {
+          x:cx, y:cy, radius: Math.round(randRange(rng, 9, 13)), speed: diff.sawSpeed * 0.85,
+          axis: chance(rng,0.5) ? 'horizontal' : 'vertical',
+          range: clamp(gapSpan*0.4, 20, 50), phase: randRange(rng, 0, Math.PI*2)
+        });
+      }
+    } else if (diff.unlockedTraps.corridor.length && chance(rng, diff.corridorChance)){
+      // Moving wall: a solid, lethal obstacle sweeping across the gap.
+      const gapSpan = x - (prev.x + prev.w);
+      if (gapSpan > 60){
+        const wallH = 44;
+        const wx = prev.x + prev.w + gapSpan/2;
+        const wy = (prev.y + targetY)/2 - wallH/2;
+        pushTrap('movingWall', {
+          x: wx, y: wy, w: 14, h: wallH,
+          speed: diff.sawSpeed * 0.7,
+          range: clamp(gapSpan * 0.45, 24, 60),
+          phase: randRange(rng, 0, Math.PI*2)
+        });
+      }
+    }
+
+    // Gap decoy (fake floor / hidden platform) — independent of whatever
+    // else is in this gap, since it's purely decorative/non-load-bearing
+    // and can happily coexist with a saw or wall for extra visual noise.
+    if (diff.unlockedTraps.gapDeception.length && chance(rng, diff.gapDeceptionChance)){
+      const gapSpan = x - (prev.x + prev.w);
+      if (gapSpan > 50){
+        const decoyType = pick(rng, diff.unlockedTraps.gapDeception);
+        const dw = Math.round(randRange(rng, 34, Math.max(34, Math.min(62, gapSpan - 12))));
+        const dx = prev.x + prev.w + gapSpan/2 - dw/2;
+        const dy2 = (prev.y + targetY)/2 + randRange(rng, -6, 10);
+        if (decoyType === 'fakeFloor'){
+          pushTrap('fakeFloor', { x:dx, y:dy2, w:dw, h:16 });
+        } else {
+          pushTrap('hiddenPlatform', { x:dx, y:dy2, w:dw, h:16, triggerRadius: Math.round(randRange(rng,50,72)) });
+        }
+      }
+    }
+
+    // Overhead hazard (independent of the gap decoration above) — a
+    // falling object or falling ceiling anchored over this platform,
+    // triggered when the player walks underneath it.
+    if (diff.unlockedTraps.overhead.length && chance(rng, diff.overheadChance)){
+      const overheadType = pick(rng, diff.unlockedTraps.overhead);
+      const ox = x + randRange(rng, w*0.25, w*0.75);
+      if (overheadType === 'fallingObject'){
+        pushTrap('fallingObject', {
+          x: ox, y: targetY - 60, floorY: targetY - 10,
+          radius: Math.round(randRange(rng, 7, 10)),
+          triggerRadius: Math.round(randRange(rng, 30, 42)),
+          fallSpeed: Math.round(randRange(rng, 290, 350)),
+          resetDelay: Math.round(randRange(rng, 1300, 1800))
+        });
+      } else {
+        const cw = Math.round(randRange(rng, 40, Math.min(70, w*0.7)));
+        pushTrap('fallingCeiling', {
+          x: ox - cw/2, y: targetY - 90, w: cw, h: 26,
+          floorY: targetY - 20,
+          triggerRadius: Math.round(randRange(rng, 40, 56)),
+          fallSpeed: Math.round(randRange(rng, 280, 340)),
+          resetDelay: Math.round(randRange(rng, 1400, 1900))
+        });
+      }
+    }
+
+    // Resolve the PREVIOUS node's pending ground hazard now that this
+    // node — its "next" for gap-safety purposes — is known.
+    if (world.pendingHazardNode){
+      addPlatformHazard(world.pendingHazardNode, node, rng, diff, hazardPool);
+      world.pendingHazardNode = null;
+    }
+
+    if (variant === 'static'){
+      level.platforms.push({ x, y: targetY, w, h:20 });
+      if (wantsHazard) world.pendingHazardNode = node;
+
+      // Standalone deception props floating just above this platform —
+      // never solid or lethal, so they never affect jump feasibility.
+      const propPool = diff.unlockedTraps.propDeception;
+      if (propPool.length && chance(rng, diff.propDeceptionChance)){
+        const propType = pick(rng, propPool);
+        const px = x + randRange(rng, 14, Math.max(16, w - 14));
+        const py = targetY - 28;
+        if (propType === 'fakeSavePoint') pushTrap('fakeSavePoint', { x:px, y:py, w:16, h:16 });
+        else if (propType === 'fakeDoor') pushTrap('fakeDoor', { x:px, y:py-16, w:16, h:34 });
+        else if (propType === 'reversedControls') pushTrap('reversedControls', { x:px, y:py, w:14, h:14, duration: Math.round(randRange(rng,2600,3800)) });
+        else if (propType === 'lockingCage') pushTrap('lockingCage', { x:px-9, y:targetY-24, w:18, h:24, lockDuration: Math.round(randRange(rng,1100,1700)) });
+        else pushTrap('deceptivePortal', { x:px-11, y:targetY-32, w:22, h:32, knockback: Math.round(randRange(rng,140,220)) });
+      }
+    } else {
+      pushTrap(variant, variantCfg);
+    }
+
+    // Coins — sparse and irregular, never a long strip. Sometimes one,
+    // sometimes a small cluster, sometimes none for a stretch. Floated
+    // at a height that occasionally demands a real jump to reach.
+    if (chance(rng, COIN_CHANCE)){
+      const roll = rng();
+      const count = roll < 0.6 ? 1 : (roll < 0.88 ? 2 : 3);
+      const baseX = x + w/2;
+      const baseY = targetY - randRange(rng, 24, 48);
+      for (let i=0; i<count; i++){
+        pushCoin(baseX + (i - (count-1)/2) * 16, baseY);
+      }
+    }
+
+    world.curX = x + w; world.curY = targetY;
+    world.prevNode = node;
+    world.nodeIndex++;
+  }
+
+  function ensureGenerated(targetX){
+    let guard = 0;
+    while (world.curX < targetX && guard < 400){ generateNextNode(); guard++; }
+  }
+
+  function pruneBehind(refX){
+    const cut = refX - PRUNE_BEHIND_PX;
+    if (level.platforms.length && level.platforms[0].x + level.platforms[0].w < cut){
+      level.platforms = level.platforms.filter(p => p.x + p.w > cut);
+    }
+    if (traps.length){
+      traps = traps.filter(t => (t.x + (t.w || (t.radius ? t.radius*2 : 0))) > cut);
+    }
+    if (coins.length){
+      coins = coins.filter(c => !c.collected && c.x > cut);
+    }
+  }
+
+  // ============================================================
+  // PERSISTENCE — localStorage, guarded so the game still runs fine
+  // if storage is unavailable (private browsing, file:// restrictions).
+  // ============================================================
+  const STORAGE_KEYS = { coins:'rageRunCoins', hearts:'rageRunHearts', audio:'rageRunAudioSettings', best:'rageRunBestDistance' };
+  function loadNum(key, fallback){
+    try { const v = localStorage.getItem(key); if (v===null) return fallback; const n = parseInt(v,10); return isNaN(n) ? fallback : n; }
+    catch(e){ return fallback; }
+  }
+  function saveNum(key, val){ try{ localStorage.setItem(key, String(val)); } catch(e){} }
+  function loadJSON(key, fallback){
+    try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; }
+  }
+  function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+
+  // ============================================================
+  // AUDIO — procedurally synthesized via Web Audio API (no external
+  // files). Music only starts after a user gesture, per browser policy.
+  // ============================================================
+  let audioCtx = null;
+  let musicEnabled = true, sfxEnabled = true;
+  let musicSchedulerHandle = null;
+  let nextStepTime = 0;
+  let musicStepIndex = 0;
+  const MUSIC_BPM = 152;
+  const STEP_DUR = 60 / MUSIC_BPM / 4; // 16th notes
+
+  function loadAudioSettings(){
+    const s = loadJSON(STORAGE_KEYS.audio, { music:true, sfx:true });
+    musicEnabled = s.music !== false;
+    sfxEnabled = s.sfx !== false;
+  }
+  function saveAudioSettings(){ saveJSON(STORAGE_KEYS.audio, { music:musicEnabled, sfx:sfxEnabled }); }
+
+  function ensureAudioCtx(){
+    if (!audioCtx){
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
+    }
+    // Never auto-resume while the page is actually hidden — that would
+    // defeat the whole point of pausing audio in the background.
+    if (audioCtx && audioCtx.state === 'suspended' && !isPageHidden()) {
+      audioCtx.resume().catch(()=>{});
+    }
+    return audioCtx;
+  }
+
+  function playTone(freq, duration, type, gainVal, freqEnd){
+    if (!sfxEnabled || isPageHidden()) return;
+    const c = ensureAudioCtx();
+    if (!c) return;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, c.currentTime);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), c.currentTime + duration);
+    gain.gain.setValueAtTime(gainVal || 0.15, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(); osc.stop(c.currentTime + duration);
+  }
+  function playNoiseBurst(duration, gainVal){
+    if (!sfxEnabled || isPageHidden()) return;
+    const c = ensureAudioCtx();
+    if (!c) return;
+    const bufferSize = Math.max(1, Math.floor(c.sampleRate * duration));
+    const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(gainVal || 0.2, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+    src.connect(gain); gain.connect(c.destination);
+    src.start();
+  }
+
+  const SFX = {
+    jump(){ playTone(340, 0.12, 'square', 0.12, 620); },
+    coin(){ playTone(880, 0.07, 'square', 0.10, 1300); },
+    hit(){ playNoiseBurst(0.16, 0.22); playTone(90, 0.2, 'sawtooth', 0.16, 40); },
+    death(){ playNoiseBurst(0.3, 0.25); playTone(160, 0.4, 'sawtooth', 0.18, 30); },
+    buyHeart(){ playTone(500, 0.10, 'square', 0.12, 750); },
+    button(){ playTone(600, 0.05, 'square', 0.08); },
+    rageUp(){ playTone(200, 0.25, 'sawtooth', 0.15, 500); }
+  };
+
+  const BASS_PATTERN = [0,0,3,0, 0,0,5,3, 0,0,3,0, 5,3,0,7];
+  const LEAD_PATTERN  = [null,null,12,null, null,15,null,12, null,null,10,null, 12,null,7,null];
+  function noteFreq(semi){ return 220 * Math.pow(2, semi/12); }
+
+  function scheduleMusicStep(c, time, stepIdx){
+    const bassSemi = BASS_PATTERN[stepIdx % BASS_PATTERN.length] - 12;
+    const osc = c.createOscillator(), gain = c.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(noteFreq(bassSemi), time);
+    gain.gain.setValueAtTime(0.14, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + STEP_DUR*0.9);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(time); osc.stop(time + STEP_DUR);
+
+    const bufferSize = Math.max(1, Math.floor(c.sampleRate * 0.03));
+    const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const hGain = c.createGain();
+    hGain.gain.setValueAtTime(0.035, time);
+    src.connect(hGain); hGain.connect(c.destination);
+    src.start(time);
+
+    const leadSemi = LEAD_PATTERN[stepIdx % LEAD_PATTERN.length];
+    if (leadSemi != null){
+      const losc = c.createOscillator(), lgain = c.createGain();
+      losc.type = 'square';
+      losc.frequency.setValueAtTime(noteFreq(leadSemi), time);
+      lgain.gain.setValueAtTime(0.06, time);
+      lgain.gain.exponentialRampToValueAtTime(0.001, time + STEP_DUR*1.8);
+      losc.connect(lgain); lgain.connect(c.destination);
+      losc.start(time); losc.stop(time + STEP_DUR*2);
+    }
+    if (stepIdx % 4 === 0){
+      const kosc = c.createOscillator(), kgain = c.createGain();
+      kosc.frequency.setValueAtTime(120, time);
+      kosc.frequency.exponentialRampToValueAtTime(35, time + 0.09);
+      kgain.gain.setValueAtTime(0.28, time);
+      kgain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+      kosc.connect(kgain); kgain.connect(c.destination);
+      kosc.start(time); kosc.stop(time + 0.12);
+    }
+  }
+  function musicScheduler(){
+    const c = audioCtx;
+    if (!c || !musicEnabled || isPageHidden()) return;
+    while (nextStepTime < c.currentTime + 0.12){
+      scheduleMusicStep(c, nextStepTime, musicStepIndex);
+      nextStepTime += STEP_DUR;
+      musicStepIndex++;
+    }
+  }
+  function startMusic(){
+    if (isPageHidden()) return; // never start while backgrounded
+    const c = ensureAudioCtx();
+    if (!c || musicSchedulerHandle) return;
+    nextStepTime = c.currentTime + 0.05;
+    musicStepIndex = 0;
+    musicSchedulerHandle = setInterval(musicScheduler, 50);
+  }
+  function stopMusic(){
+    if (musicSchedulerHandle){ clearInterval(musicSchedulerHandle); musicSchedulerHandle = null; }
+  }
+  function unlockAudioOnce(){
+    ensureAudioCtx();
+    if (musicEnabled && !isPageHidden()) startMusic();
+    window.removeEventListener('keydown', unlockAudioOnce);
+    window.removeEventListener('touchstart', unlockAudioOnce);
+    window.removeEventListener('mousedown', unlockAudioOnce);
+  }
+  window.addEventListener('keydown', unlockAudioOnce);
+  window.addEventListener('touchstart', unlockAudioOnce, {passive:true});
+  window.addEventListener('mousedown', unlockAudioOnce);
+
+  // ============================================================
+  // PAGE VISIBILITY / LIFECYCLE — stop all audio the instant the page
+  // is backgrounded (tab switch, Home button, screen lock, closing the
+  // browser), and only ever consider resuming once it's genuinely
+  // visible again. None of this touches game state — distance, coins,
+  // hearts, best score, and run number are completely untouched; only
+  // sound is affected.
+  // ============================================================
+  function isPageHidden(){
+    return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+  }
+
+  let audioWasPlayingBeforeHide = false;
+
+  function suspendAudioForBackground(){
+    audioWasPlayingBeforeHide = !!musicSchedulerHandle;
+    stopMusic(); // stop scheduling any new notes
+    if (audioCtx && audioCtx.state === 'running'){
+      audioCtx.suspend().catch(()=>{}); // immediately silences anything already scheduled/queued
+    }
+  }
+
+  function resumeAudioIfVisible(){
+    if (isPageHidden()) return; // still not actually visible — do nothing
+    if (!musicEnabled) return;  // user turned music off in Settings — stay off
+    if (!audioCtx) return;      // never started yet — will start on first user gesture as usual
+
+    if (audioCtx.state === 'suspended'){
+      // Browsers may still block resume() here if it's not itself
+      // triggered by a user gesture — if so, unlockAudioOnce (already
+      // listening for the next tap/click/key) picks it back up.
+      audioCtx.resume().then(()=>{
+        if (musicEnabled && !isPageHidden()) startMusic();
+      }).catch(()=>{});
+    } else if (audioWasPlayingBeforeHide){
+      startMusic();
+    }
+  }
+
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.visibilityState === 'hidden') suspendAudioForBackground();
+    else resumeAudioIfVisible();
+  });
+  // pagehide/pageshow cover tab close, navigation, and some mobile
+  // backgrounding cases that visibilitychange alone can miss.
+  window.addEventListener('pagehide', suspendAudioForBackground);
+  window.addEventListener('pageshow', resumeAudioIfVisible);
+  // Page Lifecycle API (Chrome/Android): tabs can be frozen/discarded
+  // in the background well before pagehide fires.
+  document.addEventListener('freeze', suspendAudioForBackground);
+  document.addEventListener('resume', resumeAudioIfVisible);
+
+  // COINS — sparse, sometimes clustered, occasionally placed to reward
+  // risk. Collected count persists via localStorage.
+  // ============================================================
+  let coins = [];
+  let totalCoins = 0;
+  function loadCoins(){ totalCoins = loadNum(STORAGE_KEYS.coins, 0); }
+  function saveCoins(){ saveNum(STORAGE_KEYS.coins, totalCoins); }
+  function pushCoin(x, y){ coins.push({ x, y, collected:false, bob: Math.random()*Math.PI*2 }); }
+
+  function checkCoinPickup(player){
+    for (const c of coins){
+      if (c.collected) continue;
+      if (circleHit(c.x, c.y, 8, player)){
+        c.collected = true;
+        totalCoins++;
+        saveCoins();
+        const el = document.getElementById('coinNum');
+        if (el) el.textContent = totalCoins;
+        SFX.coin();
+        spawnFloatingText(c.x, c.y - 8, '+1', '#ffb02e');
+      }
+    }
+  }
+  function updateCoins(dtMs){ /* purely visual bobbing, handled at draw time */ }
+  function drawCoins(){
+    for (const c of coins){
+      if (c.collected) continue;
+      const sx = c.x - camera.x;
+      if (sx < -20 || sx > VIEW_W + 20) continue;
+      const sy = c.y - camera.y + Math.sin(performance.now()/300 + c.bob)*2;
+      ctx.save();
+      ctx.fillStyle = '#ffb02e';
+      ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#fff4d6'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ============================================================
+  // HEARTS — limited attempts. Persist via localStorage; buyable with
+  // coins in the shop (900 🪙 each).
+  // ============================================================
+  let hearts = 3;
+  function loadHearts(){ hearts = loadNum(STORAGE_KEYS.hearts, 3); }
+  function saveHearts(){ saveNum(STORAGE_KEYS.hearts, hearts); }
+  function buyHeart(msgElId){
+    if (totalCoins >= 900){
+      totalCoins -= 900;
+      hearts += 1;
+      saveCoins(); saveHearts();
+      SFX.buyHeart();
+      const cn = document.getElementById('coinNum'); if (cn) cn.textContent = totalCoins;
+      const hn = document.getElementById('heartNum'); if (hn) hn.textContent = hearts;
+      const msg = document.getElementById(msgElId); if (msg) msg.textContent = 'Heart purchased!';
+      return true;
+    } else {
+      const msg = document.getElementById(msgElId); if (msg) msg.textContent = 'لا تملك عملات كافية.';
+      SFX.button();
+      return false;
+    }
+  }
+
+  // ============================================================
+  // RAGE METER — rises sharply on death, cools slowly while alive.
+  // ============================================================
+  let rageLevel = 0;
+  let rageLastTier = 0;
+  function updateRageMeter(dtMs){
+    if (state === 'playing') rageLevel = Math.max(0, rageLevel - dtMs*0.006);
+    const fill = document.getElementById('rage-fill');
+    if (fill) fill.style.width = rageLevel + '%';
+    const tier = Math.floor(rageLevel/25);
+    if (tier > rageLastTier) SFX.rageUp();
+    rageLastTier = tier;
+  }
+
+  // ---------- 6. Entities + run lifecycle ----------
+  const player = { x:40, y:170, w:14, h:18, vx:0, vy:0, onGround:false, facing:1, trail:[], groundTrap:null };
+  const camera = { x:0, y:0 };
+
+  let deaths = 0;       // cumulative across the whole session (every run ends in death)
+  let bestDistance = 0; // best distance, persists across restarts
+  let runNumber = 0;
+  let distance = 0;
+  let state = 'playing';
+  let deathTimer = 0;
+  let deathReason = 'fall';
+  let particles = [];
+  let floatingTexts = [];
+  let reverseControlsTimer = 0; // >0 while REVERSED! is in effect
+  let inputLockTimer = 0;       // >0 while the locking cage has frozen input
+  let lastSafeX = 40, lastSafeY = 170; // last confirmed-safe footing, used by Continue
+
+  let level = { platforms: [] };
+  let traps = [];
+  let trapConfigs = [];
+
+  function spawnFloatingText(x, y, text, color){
+    floatingTexts.push({ x, y, text, color, life: 1 });
+  }
+  function updateFloatingTexts(dtMs){
+    const dt = dtMs/16.67;
+    for (const f of floatingTexts){ f.y -= 0.35*dt; f.life -= 0.012*dt; }
+    floatingTexts = floatingTexts.filter(f => f.life > 0);
+  }
+  function drawFloatingTexts(){
+    for (const f of floatingTexts){
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, f.life);
+      ctx.fillStyle = f.color;
+      ctx.font = "8px 'Press Start 2P', monospace";
+      ctx.textAlign = 'center';
+      ctx.shadowColor = f.color; ctx.shadowBlur = 5;
+      ctx.fillText(f.text, f.x - camera.x, f.y - camera.y);
+      ctx.restore();
+    }
+  }
+  function checkTrapEffectHit(player){
+    for (const trap of traps){
+      const mod = TRAP_MODULES[trap.type];
+      if (mod.isEffect && mod.hit(trap, player)) mod.onTouch(trap);
+    }
+  }
+
+  const DEATH_LINES = {
+    fall: 'the void doesn\'t negotiate.',
+    spikes: 'sharp things don\'t apologize.',
+    hiddenSpikes: 'it was waiting for you.',
+    saw: 'never trust a spinning thing.',
+    delayedTrap: 'the floor was never your friend.',
+    fallingCeiling: 'looked up too late.',
+    fallingObject: 'gravity had other plans.',
+    movingWall: 'wrong place, wrong wall.',
+    default: 'that was not fair. try again.'
+  };
+
+  function updateHud(){
+    document.getElementById('distNum').textContent = distance;
+    document.getElementById('bestNum').textContent = bestDistance;
+    document.getElementById('deathCount').textContent = deaths;
+    document.getElementById('runNum').textContent = runNumber;
+    document.getElementById('coinNum').textContent = totalCoins;
+    document.getElementById('heartNum').textContent = hearts;
+  }
+
+  function startNewRun(){
+    runNumber++;
+    const seedStr = 'RUN-' + Date.now().toString(36) + '-' + Math.floor(Math.random()*1e6).toString(36);
+    world.seedStr = seedStr;
+    world.rng = mulberry32(hashSeedString(seedStr));
+    world.curX = 0; world.curY = BASE_Y;
+    world.nodeIndex = 0;
+    world.prevNode = { x:0, y:BASE_Y, w:START_W, h:20 };
+    world.pendingHazardNode = null;
+
+    level = { platforms: [{ x:0, y:BASE_Y, w:START_W, h:20, type:'start' }] };
+    traps = [];
+    trapConfigs = [];
+    coins = [];
+    world.curX = START_W;
+
+    player.x = 40; player.y = BASE_Y - 50;
+    player.vx = 0; player.vy = 0; player.trail = []; player.groundTrap = null;
+    camera.x = 0; camera.y = 0;
+    lastSafeX = player.x; lastSafeY = player.y;
+    particles = [];
+    floatingTexts = [];
+    reverseControlsTimer = 0;
+    inputLockTimer = 0;
+    distance = 0;
+    state = 'playing';
+
+    document.getElementById('death-overlay').classList.remove('active');
+    ensureGenerated(VIEW_W + GEN_LOOKAHEAD_PX);
+    updateHud();
+  }
+
+  // ---------- 7. Collision ----------
+  function aabbIntersect(a, b){
+    return a.x < b.x + b.w && a.x + a.w > b.x &&
+           a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+  function resolveCollisions(entity, prevX, prevY, solids){
+    entity.onGround = false;
+    entity.groundTrap = null;
+    for (const p of solids){
+      if (!aabbIntersect(entity, p)) continue;
+      const wasAbove = (prevY + entity.h) <= p.y + 0.5;
+      const wasBelow = prevY >= p.y + p.h - 0.5;
+      const wasLeft = (prevX + entity.w) <= p.x + 0.5;
+      const wasRight = prevX >= p.x + p.w - 0.5;
+
+      if (wasAbove && entity.vy >= 0){
+        entity.y = p.y - entity.h;
+        entity.vy = 0;
+        entity.onGround = true;
+        entity.groundTrap = p.refTrap || null;
+        if (p.refTrap && (p.refTrap.type === 'fallingPlatform' || p.refTrap.type === 'crumblingFloor')) p.refTrap.touchedThisFrame = true;
+      } else if (wasBelow && entity.vy < 0){
+        entity.y = p.y + p.h;
+        entity.vy = 0;
+      } else if (wasLeft && entity.vx > 0){
+        entity.x = p.x - entity.w;
+        entity.vx = 0;
+      } else if (wasRight && entity.vx < 0){
+        entity.x = p.x + p.w;
+        entity.vx = 0;
+      }
+    }
+  }
+
+  function updatePlayer(dtMs){
+    const prevX = player.x;
+    const prevY = player.y;
+
+    if (reverseControlsTimer > 0){
+      reverseControlsTimer -= dtMs;
+      if (reverseControlsTimer < 0) reverseControlsTimer = 0;
+    }
+    if (inputLockTimer > 0){
+      inputLockTimer -= dtMs;
+      if (inputLockTimer < 0) inputLockTimer = 0;
+    }
+    const locked = inputLockTimer > 0;
+    const reversed = reverseControlsTimer > 0;
+    const goLeft = locked ? false : (reversed ? input.right : input.left);
+    const goRight = locked ? false : (reversed ? input.left : input.right);
+    const canJump = !locked;
+
+    const control = player.onGround ? 1 : AIR_CONTROL;
+    if (goLeft && !goRight){
+      player.vx -= MOVE_SPEED * 0.35 * control;
+      player.facing = -1;
+    } else if (goRight && !goLeft){
+      player.vx += MOVE_SPEED * 0.35 * control;
+      player.facing = 1;
+    } else {
+      player.vx *= FRICTION;
+    }
+    player.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, player.vx));
+    if (Math.abs(player.vx) < 0.02) player.vx = 0;
+
+    if (input.jumpPressed && player.onGround && canJump){
+      player.vy = JUMP_VELOCITY;
+      player.onGround = false;
+      SFX.jump();
+    }
+    input.jumpPressed = false;
+
+    player.vy += GRAVITY;
+    if (player.vy > MAX_FALL_SPEED) player.vy = MAX_FALL_SPEED;
+
+    ensureGenerated(player.x + GEN_LOOKAHEAD_PX);
+    updateTraps(dtMs, player);
+    const solids = level.platforms.concat(getSolidTrapBoxes());
+
+    player.x += player.vx;
+    resolveCollisions(player, prevX, player.y, solids);
+    player.y += player.vy;
+    resolveCollisions(player, player.x, prevY, solids);
+
+    if (player.onGround && player.groundTrap && player.groundTrap.type === 'movingPlatform'){
+      player.x += player.groundTrap.dx;
+    }
+
+    if (player.x < 0) player.x = 0;
+
+    // Remember the last spot the player stood on solid, non-collapsible
+    // ground — used to revive them nearby if they buy a Continue.
+    if (player.onGround && (!player.groundTrap || player.groundTrap.type === 'movingPlatform')){
+      lastSafeX = player.x;
+      lastSafeY = player.y;
+    }
+
+    player.trail.unshift({x:player.x + player.w/2, y:player.y + player.h/2});
+    if (player.trail.length > 8) player.trail.pop();
+
+    distance = Math.floor(player.x / 10);
+    document.getElementById('distNum').textContent = distance;
+
+    pruneBehind(player.x);
+    updateFloatingTexts(dtMs);
+
+    if (player.y > DEATH_Y){ triggerDeath('fall'); return; }
+    const hitTrap = checkTrapLethalHit(player);
+    if (hitTrap){ triggerDeath(hitTrap.type); return; }
+    checkTrapEffectHit(player);
+    checkCoinPickup(player);
+  }
+
+  // ---------- 8. Camera ----------
+  function updateCamera(){
+    const targetX = player.x + player.w/2 - VIEW_W/2;
+    camera.x += (targetX - camera.x) * 0.15;
+    camera.x = Math.max(0, camera.x);
+    camera.y = 0;
+  }
+
+  // ---------- Death particles ----------
+  function spawnDeathParticles(x, y){
+    particles = [];
+    const colors = ['#3ef6ff', '#ff2f92', '#8b5cf6'];
+    for (let i=0; i<16; i++){
+      const angle = (i / 16) * Math.PI * 2 + Math.random()*0.4;
+      const speed = 1.2 + Math.random()*2.2;
+      particles.push({
+        x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 1,
+        life: 1, color: colors[i % colors.length], size: 2 + Math.random()*2
+      });
+    }
+  }
+  function updateParticles(dtMs){
+    const dt = dtMs/16.67;
+    for (const p of particles){
+      p.vy += 0.12 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.028 * dt;
+    }
+    particles = particles.filter(p => p.life > 0);
+  }
+  function drawParticles(){
+    for (const p of particles){
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 5;
+      ctx.fillRect(p.x - camera.x - p.size/2, p.y - camera.y - p.size/2, p.size, p.size);
+      ctx.restore();
+    }
+  }
+
+  // ---------- 9. Death / Restart ----------
+  function triggerDeath(reason){
+    if (state !== 'playing') return;
+    state = 'dying';
+    deathTimer = 0;
+    deathReason = reason;
+    SFX.hit();
+    spawnDeathParticles(player.x + player.w/2, player.y + player.h/2);
+  }
+
+  function finalizeDeath(){
+    state = 'dead';
+    deaths++;
+    if (distance > bestDistance){ bestDistance = distance; saveNum(STORAGE_KEYS.best, bestDistance); }
+    rageLevel = Math.min(100, rageLevel + 22);
+    SFX.death();
+    document.getElementById('deathCount').textContent = deaths;
+    document.getElementById('bestNum').textContent = bestDistance;
+
+    document.getElementById('death-line').textContent = DEATH_LINES[deathReason] || DEATH_LINES.default;
+    document.getElementById('finalDist').textContent = distance;
+    document.getElementById('finalCoins').textContent = totalCoins;
+    document.getElementById('death-msg').textContent = '';
+    const continueBtn = document.getElementById('death-continue');
+    continueBtn.classList.toggle('disabled', totalCoins < 900);
+    document.getElementById('death-overlay').classList.add('active');
+  }
+
+  // Continue-in-place: costs 900 coins, revives the player at the last
+  // safe spot they stood on (no world regeneration, no reset to 0m).
+  function continueRun(){
+    if (totalCoins < 900){
+      document.getElementById('death-msg').textContent = 'لا تملك عملات كافية للاستمرار.';
+      SFX.button();
+      return;
+    }
+    totalCoins -= 900;
+    saveCoins();
+    SFX.buyHeart();
+
+    player.x = lastSafeX; player.y = lastSafeY;
+    player.vx = 0; player.vy = 0; player.trail = []; player.groundTrap = null;
+    particles = [];
+    floatingTexts = [];
+    reverseControlsTimer = 0;
+    inputLockTimer = 0;
+    distance = Math.floor(player.x / 10);
+    state = 'playing';
+
+    document.getElementById('coinNum').textContent = totalCoins;
+    document.getElementById('death-overlay').classList.remove('active');
+  }
+
+  document.getElementById('death-continue').addEventListener('click', continueRun);
+  document.getElementById('death-restart').addEventListener('click', ()=>{ SFX.button(); startNewRun(); });
+
+  // ---------- 10. Render ----------
+  function drawBackground(){
+    ctx.fillStyle = '#0a0714';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 1;
+    const parallax = camera.x * 0.3;
+    for (let i = -1; i < 8; i++){
+      const gx = (i * 90) - (parallax % 90);
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, VIEW_H); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    const baseIndex = Math.floor((camera.x - 260) / 260);
+    for (let k = 0; k < 8; k++){
+      const worldX = (baseIndex + k) * 260 + 130;
+      const by = 40 + (k % 3) * 30;
+      ctx.fillStyle = k % 2 === 0 ? '#3ef6ff' : '#ff2f92';
+      ctx.beginPath(); ctx.arc(worldX - camera.x, by, 3, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawPlatforms(){
+    for (const p of level.platforms){
+      const sx = p.x - camera.x, sy = p.y - camera.y;
+      if (sx + p.w < 0 || sx > VIEW_W) continue;
+      ctx.fillStyle = '#1c1230';
+      ctx.fillRect(sx, sy, p.w, p.h);
+      let edgeColor = p.type === 'start' ? '#3ef6ff' : '#8b5cf6';
+      ctx.fillStyle = edgeColor;
+      ctx.fillRect(sx, sy, p.w, 2);
+      ctx.save();
+      ctx.shadowColor = edgeColor; ctx.shadowBlur = 6;
+      ctx.fillRect(sx, sy, p.w, 2);
+      ctx.restore();
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(sx, sy + p.h - 4, p.w, 4);
+    }
+  }
+
+  function drawPlayer(){
+    if (state === 'dying' || state === 'dead') return;
+    const sx = player.x - camera.x, sy = player.y - camera.y;
+    for (let i = player.trail.length - 1; i >= 0; i--){
+      const t = player.trail[i];
+      const alpha = (1 - i / player.trail.length) * 0.25;
+      ctx.fillStyle = `rgba(62,246,255,${alpha})`;
+      ctx.fillRect(t.x - camera.x - 2, t.y - camera.y - 2, 4, 4);
+    }
+    ctx.save();
+    ctx.translate(sx + player.w/2, sy + player.h/2);
+    ctx.scale(player.facing, 1);
+    const reversedTint = reverseControlsTimer > 0;
+    const lockedTint = inputLockTimer > 0;
+    const tintColor = lockedTint ? '#ffb02e' : (reversedTint ? '#ff2f92' : '#3ef6ff');
+    ctx.save();
+    ctx.shadowColor = tintColor; ctx.shadowBlur = 8;
+    ctx.fillStyle = '#141026';
+    ctx.beginPath();
+    ctx.moveTo(0, -player.h/2);
+    ctx.lineTo(player.w/2, -2);
+    ctx.lineTo(player.w/2 - 3, player.h/2);
+    ctx.lineTo(-(player.w/2 - 3), player.h/2);
+    ctx.lineTo(-player.w/2, -2);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = lockedTint ? '#ffb02e' : (reversedTint ? '#ff2f92' : '#8b5cf6'); ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = tintColor;
+    ctx.shadowColor = tintColor; ctx.shadowBlur = 6;
+    ctx.fillRect(1, -4, 4, 2);
+    ctx.restore();
+  }
+
+  function render(){
+    drawBackground();
+    drawPlatforms();
+    drawCoins();
+    drawTraps();
+    drawPlayer();
+    drawParticles();
+    drawFloatingTexts();
+  }
+
+  // ---------- 11. Game loop ----------
+  let lastTime = performance.now();
+  function loop(now){
+    const dtMs = Math.min(32, now - lastTime);
+    lastTime = now;
+
+    if (state === 'playing'){
+      updatePlayer(dtMs);
+      if (state === 'playing') updateCamera();
+    } else if (state === 'dying'){
+      deathTimer += dtMs;
+      updateParticles(dtMs);
+      if (deathTimer >= DEATH_ANIM_MS) finalizeDeath();
+    } else if (state === 'dead'){
+      updateParticles(dtMs);
+    }
+    // 'paused' (shop/settings open): skip all updates, just keep rendering.
+
+    updateRageMeter(dtMs);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  loadCoins();
+  loadHearts();
+  loadAudioSettings();
+  bestDistance = loadNum(STORAGE_KEYS.best, 0);
+  startNewRun();
+  requestAnimationFrame(loop);
+
+  // ---------- 12. UI wiring: shop, settings, game-over, hearts ----------
+  function openOverlay(id){
+    SFX.button();
+    document.getElementById(id).classList.add('active');
+    if (state === 'playing') state = 'paused';
+  }
+  function closeOverlay(id){
+    document.getElementById(id).classList.remove('active');
+    if (state === 'paused') state = 'playing';
+  }
+
+  document.getElementById('shop-btn').addEventListener('click', ()=>{
+    document.getElementById('shopCoins').textContent = totalCoins;
+    document.getElementById('shop-msg').textContent = '';
+    openOverlay('shop-overlay');
+  });
+  document.getElementById('shop-close').addEventListener('click', ()=>{ SFX.button(); closeOverlay('shop-overlay'); });
+  document.getElementById('shop-buy-heart').addEventListener('click', ()=>{ buyHeart('shop-msg'); });
+
+  document.getElementById('settings-btn').addEventListener('click', ()=> openOverlay('settings-overlay'));
+  document.getElementById('settings-close').addEventListener('click', ()=>{ SFX.button(); closeOverlay('settings-overlay'); });
+
+  document.getElementById('toggle-music').addEventListener('click', function(){
+    musicEnabled = !musicEnabled;
+    this.textContent = musicEnabled ? 'ON' : 'OFF';
+    this.classList.toggle('off', !musicEnabled);
+    saveAudioSettings();
+    if (musicEnabled) startMusic(); else stopMusic();
+    SFX.button();
+  });
+  document.getElementById('toggle-sfx').addEventListener('click', function(){
+    sfxEnabled = !sfxEnabled;
+    this.textContent = sfxEnabled ? 'ON' : 'OFF';
+    this.classList.toggle('off', !sfxEnabled);
+    saveAudioSettings();
+    if (sfxEnabled) SFX.button();
+  });
+
+  // Reflect loaded settings in the toggle buttons on first paint.
+  (function initUI(){
+    const mBtn = document.getElementById('toggle-music');
+    const sBtn = document.getElementById('toggle-sfx');
+    mBtn.textContent = musicEnabled ? 'ON' : 'OFF'; mBtn.classList.toggle('off', !musicEnabled);
+    sBtn.textContent = sfxEnabled ? 'ON' : 'OFF'; sBtn.classList.toggle('off', !sfxEnabled);
+  })();
+
+  // Exposed only for automated testing harnesses; harmless in normal play.
+  window.__RAGE_RUN_API__ = { computeMaxGapForDy, getDifficultyParams, hashSeedString, mulberry32 };
+
+})();
+</script>
+</body>
+</html>
